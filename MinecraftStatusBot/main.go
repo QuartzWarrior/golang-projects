@@ -16,6 +16,14 @@ var (
 	guildID = 0
 )
 
+// Structure for json file data
+type serverData map[string]Server
+
+type Server struct {
+	Address string `json:"address"`
+}
+
+// Structure of mcsrvstat.us v2 api response, soon to be my own api
 type Debug struct {
 	Ping          bool  `json:"ping"`
 	Query         bool  `json:"query"`
@@ -130,17 +138,35 @@ func main() {
 				Type:        discordgo.ApplicationCommandOptionString,
 				Name:        "server",
 				Description: "The ip or hostname of the selected server",
+				Required:    false,
+			},
+		},
+	})
+
+	if err != nil {
+		fmt.Println("Error registering command: ", err)
+	}
+
+	_, err = dg.ApplicationCommandCreate(dg.State.User.ID, fmt.Sprint(guildID), &discordgo.ApplicationCommand{
+		Name:        "server",
+		Description: "Set the default server for this guild.",
+		Options: []*discordgo.ApplicationCommandOption{
+			{
+				Type:        discordgo.ApplicationCommandOptionString,
+				Name:        "address",
+				Description: "The ip or hostname of the server.",
 				Required:    true,
 			},
 		},
 	})
 
 	if err != nil {
-		fmt.Println("error registering command", err)
+		fmt.Println("Error registering command: ", err)
 	}
 
 	commandHandlers := map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate){
 		"status": statusHandler,
+		"server": setServerHandler,
 	}
 
 	dg.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
@@ -158,8 +184,107 @@ func main() {
 
 }
 
-func statusHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
+func setServerHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	server := i.ApplicationCommandData().Options[0].StringValue()
+	file, err := os.Open("data.json")
+	if err != nil {
+		fmt.Println("Error during file opening: ", err)
+		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Content: "There was an error opening the JSON file. Try again later.",
+			},
+		})
+		return
+	}
+	var data serverData
+	decoder := json.NewDecoder(file)
+	err = decoder.Decode(&data)
+	if err != nil {
+		fmt.Println("Error during json decoding: ", err)
+		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Content: "There was an error decoding the JSON file. Try again later.",
+			},
+		})
+		return
+	}
+
+	data[i.GuildID] = Server{Address: server}
+
+	jsonData, err := json.MarshalIndent(data, "", "    ")
+	if err != nil {
+		fmt.Println("Error during json formatting: ", err)
+		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Content: "There was an error formatting the JSON file. Try again later.",
+			},
+		})
+		return
+	}
+
+	err = os.WriteFile("data.json", jsonData, 0644)
+	if err != nil {
+		fmt.Println("Error during json writing: ", err)
+		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Content: "There was an error writing to the JSON file. Try again later.",
+			},
+		})
+		return
+	}
+	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{
+			Content: fmt.Sprintf("Successfully set default server to %s", server),
+		},
+	})
+
+}
+
+func statusHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
+	})
+	server := ""
+	if len(i.ApplicationCommandData().Options) < 1 {
+		file, err := os.Open("data.json")
+		if err != nil {
+			fmt.Println("Error during file opening: ", err)
+			message := "There was an error opening the JSON file. Try again later."
+			s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+				Content: &message,
+			})
+			return
+		}
+		var data serverData
+		decoder := json.NewDecoder(file)
+		err = decoder.Decode(&data)
+		if err != nil {
+			fmt.Println("Error during json decoding: ", err)
+			message := "There was an error decoding the JSON file. Try again later."
+			s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+				Content: &message,
+			})
+			return
+		}
+
+		serverData, exists := data[i.GuildID]
+		if exists {
+			server = serverData.Address
+		} else {
+			message := fmt.Sprintf("Rerun this command using </status:%s>, this time providing the server ip.\n\nYou may also set the default server for this guild via /server.", i.Interaction.ID)
+			s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+				Content: &message,
+			})
+			return
+		}
+	} else {
+		server = i.ApplicationCommandData().Options[0].StringValue()
+	}
 	client = &fasthttp.Client{}
 	req := fasthttp.AcquireRequest()
 	req.SetRequestURI(fmt.Sprintf("https://api.mcsrvstat.us/2/%s", server))
@@ -176,55 +301,59 @@ func statusHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		fmt.Println(err)
 	}
 
-	err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-		Type: discordgo.InteractionResponseChannelMessageWithSource,
-		Data: &discordgo.InteractionResponseData{
-			Content: respBody.IP,
-			Embeds: []*discordgo.MessageEmbed{
-				{
-					Title: fmt.Sprintf("Status for %s", server),
-					Type:  discordgo.EmbedTypeRich,
-					Thumbnail: &discordgo.MessageEmbedThumbnail{
-						URL: fmt.Sprintf("https://api.mcsrvstat.us/icon/%s.png", server),
+	if !respBody.Online {
+		message := fmt.Sprintf("%s seems to be offline!", server)
+		s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+			Content: &message,
+		})
+		return
+	}
+
+	message := respBody.IP
+	s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+		Content: &message,
+		Embeds: &[]*discordgo.MessageEmbed{
+			{
+				Title: fmt.Sprintf("Status for %s", server),
+				Type:  discordgo.EmbedTypeRich,
+				Thumbnail: &discordgo.MessageEmbedThumbnail{
+					URL: fmt.Sprintf("https://api.mcsrvstat.us/icon/%s.png", server),
+				},
+				Footer: &discordgo.MessageEmbedFooter{
+					Text:    i.Member.User.Username,
+					IconURL: i.Member.User.AvatarURL("16"),
+				},
+				Fields: []*discordgo.MessageEmbedField{
+					{
+						Name:   "IP",
+						Value:  respBody.IP,
+						Inline: true,
 					},
-					Footer: &discordgo.MessageEmbedFooter{
-						Text:    i.Member.User.Username,
-						IconURL: i.Member.User.AvatarURL("16"),
+					{
+						Name:   "Port",
+						Value:  fmt.Sprint(respBody.Port),
+						Inline: true,
 					},
-					Fields: []*discordgo.MessageEmbedField{
-						{
-							Name:   "IP",
-							Value:  respBody.IP,
-							Inline: true,
-						},
-						{
-							Name:   "Port",
-							Value:  fmt.Sprint(respBody.Port),
-							Inline: true,
-						},
-						{
-							Name:   "Version",
-							Value:  respBody.Version,
-							Inline: true,
-						},
-						{
-							Name:   "List",
-							Value:  fmt.Sprintf("%d/%d", respBody.Players.Online, respBody.Players.Max),
-							Inline: true,
-						},
-						{
-							Name:   "Motd",
-							Value:  respBody.Motd.Raw[0],
-							Inline: true,
-						},
+					{
+						Name:   "Version",
+						Value:  respBody.Version,
+						Inline: true,
+					},
+					{
+						Name:   "List",
+						Value:  fmt.Sprintf("%d/%d", respBody.Players.Online, respBody.Players.Max),
+						Inline: true,
+					},
+					{
+						Name:   "Motd",
+						Value:  respBody.Motd.Raw[0],
+						Inline: true,
 					},
 				},
 			},
 		},
-	})
-	if err != nil {
-		fmt.Println(err)
-	}
+	},
+	)
 	fasthttp.ReleaseResponse(resp)
 
 }
