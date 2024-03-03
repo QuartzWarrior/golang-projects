@@ -1,0 +1,286 @@
+{
+    "ip": "209.222.114.26",
+    "port": 25565,
+    "debug": {
+        "ping": true,
+        "query": false,
+        "srv": true,
+        "querymismatch": false,
+        "ipinsrv": false,
+        "cnameinsrv": true,
+        "animatedmotd": false,
+        "cachehit": true,
+        "cachetime": 1709322554,
+        "cacheexpire": 1709322614,
+        "apiversion": 2,
+        "dns": {
+            "srv": [
+                {
+                    "name": "_minecraft._tcp.hypixel.net",
+                    "type": "SRV",
+                    "class": "IN",
+                    "ttl": 300,
+                    "rdlength": 0,
+                    "rdata": "",
+                    "priority": 1,
+                    "weight": 1,
+                    "port": 25565,
+                    "target": "mc.hypixel.net"
+                },
+                {
+                    "name": "_minecraft._tcp.hypixel.net",
+                    "type": "RRSIG",
+                    "class": "IN",
+                    "ttl": 300,
+                    "rdlength": 0,
+                    "rdata": "",
+                    "typecovered": "SRV",
+                    "algorithm": 13,
+                    "labels": 4,
+                    "origttl": 300,
+                    "sigexp": "20240302204912",
+                    "sigincep": "20240229184912",
+                    "keytag": 34505,
+                    "signname": "hypixel.net",
+                    "signature": "ugyE3WouXCSI213gx+IHlSWm9K\/lJfsBndIBuS3CH6P5CaGeKZ7mEacM3mu+FhjiQUDCbdmh+tMUEmw6Y9J7Jw=="
+                }
+            ],
+            "srv_a": [
+                {
+                    "name": "mc.hypixel.net",
+                    "type": "CNAME",
+                    "class": "IN",
+                    "ttl": 120,
+                    "rdlength": 0,
+                    "rdata": "",
+                    "cname": "r53.mc.production.hypixel.io"
+                },
+                {
+                    "name": "mc.hypixel.net",
+                    "type": "RRSIG",
+                    "class": "IN",
+                    "ttl": 120,
+                    "rdlength": 0,
+                    "rdata": "",
+                    "typecovered": "CNAME",
+                    "algorithm": 13,
+                    "labels": 3,
+                    "origttl": 120,
+                    "sigexp": "20240302204845",
+                    "sigincep": "20240229184845",
+                    "keytag": 34505,
+                    "signname": "hypixel.net",
+                    "signature": "EqWKpn6GR0SaydOPzivJIm4fLyun4n6\/A7i3B8pCIK2L7R0GA\/GR4EgPlkObK3sb678f3fgiJm5WFX0\/NfCfOw=="
+                },
+                {
+                    "name": "r53.mc.production.hypixel.io",
+                    "type": "A",
+                    "class": "IN",
+                    "ttl": 60,
+                    "rdlength": 0,
+                    "rdata": "",
+                    "address": "209.222.114.18"
+                },
+                {
+                    "name": "r53.mc.production.hypixel.io",
+                    "type": "A",
+                    "class": "IN",
+                    "ttl": 60,
+                    "rdlength": 0,
+                    "rdata": "",
+                    "address": "209.222.114.16"
+                },
+                {
+                    "name": "r53.mc.production.hypixel.io",
+                    "type": "A",
+                    "class": "IN",
+                    "ttl": 60,
+                    "rdlength": 0,
+                    "rdata": "",
+                    "address": "209.222.114.54"
+                },
+                {
+                    "name": "r53.mc.production.hypixel.io",
+                    "type": "A",
+                    "class": "IN",
+                    "ttl": 60,
+                    "rdlength": 0,
+                    "rdata": "",
+                    "address": "209.222.114.26"
+                },
+                {
+                    "name": "r53.mc.production.hypixel.io",
+                    "type": "A",
+                    "class": "IN",
+                    "ttl": 60,
+                    "rdlength": 0,
+                    "rdata": "",
+                    "address": "209.222.114.31"
+                },
+                {
+                    "name": "r53.mc.production.hypixel.io",
+                    "type": "A",
+                    "class": "IN",
+                    "ttl": 60,
+                    "rdlength": 0,
+                    "rdata": "",
+                    "address": "209.222.114.32"
+                },
+                {
+                    "name": "r53.mc.production.hypixel.io",
+                    "type": "A",
+                    "class": "IN",
+                    "ttl": 60,
+                    "rdlength": 0,
+                    "rdata": "",
+                    "address": "209.222.114.29"
+                },
+                {
+                    "name": "r53.mc.production.hypixel.io",
+                    "type": "A",
+                    "class": "IN",
+                    "ttl": 60,
+                    "rdlength": 0,
+                    "rdata": "",
+                    "address": "209.222.114.36"
+                },
+                {
+                    "name": "r53.mc.production.hypixel.io",
+                    "type": "A",
+                    "class": "IN",
+                    "ttl": 60,
+                    "rdlength": 0,
+                    "rdata": "",
+                    "address": "209.222.114.22"
+                },
+                {
+                    "name": "r53.mc.production.hypixel.io",
+                    "type": "A",
+                    "class": "IN",
+                    "ttl": 60,
+                    "rdlength": 0,
+                    "rdata": "",
+                    "address": "209.222.114.47"
+                },
+                {
+                    "name": "r53.mc.production.hypixel.io",
+                    "type": "A",
+                    "class": "IN",
+                    "ttl": 60,
+                    "rdlength": 0,
+                    "rdata": "",
+                    "address": "209.222.114.42"
+                },
+                {
+                    "name": "r53.mc.production.hypixel.io",
+                    "type": "A",
+                    "class": "IN",
+                    "ttl": 60,
+                    "rdlength": 0,
+                    "rdata": "",
+                    "address": "209.222.114.39"
+                },
+                {
+                    "name": "r53.mc.production.hypixel.io",
+                    "type": "A",
+                    "class": "IN",
+                    "ttl": 60,
+                    "rdlength": 0,
+                    "rdata": "",
+                    "address": "209.222.114.40"
+                },
+                {
+                    "name": "r53.mc.production.hypixel.io",
+                    "type": "A",
+                    "class": "IN",
+                    "ttl": 60,
+                    "rdlength": 0,
+                    "rdata": "",
+                    "address": "209.222.114.55"
+                },
+                {
+                    "name": "r53.mc.production.hypixel.io",
+                    "type": "A",
+                    "class": "IN",
+                    "ttl": 60,
+                    "rdlength": 0,
+                    "rdata": "",
+                    "address": "209.222.114.41"
+                },
+                {
+                    "name": "r53.mc.production.hypixel.io",
+                    "type": "A",
+                    "class": "IN",
+                    "ttl": 60,
+                    "rdlength": 0,
+                    "rdata": "",
+                    "address": "209.222.114.4"
+                },
+                {
+                    "name": "r53.mc.production.hypixel.io",
+                    "type": "A",
+                    "class": "IN",
+                    "ttl": 60,
+                    "rdlength": 0,
+                    "rdata": "",
+                    "address": "209.222.114.60"
+                },
+                {
+                    "name": "r53.mc.production.hypixel.io",
+                    "type": "A",
+                    "class": "IN",
+                    "ttl": 60,
+                    "rdlength": 0,
+                    "rdata": "",
+                    "address": "209.222.114.6"
+                },
+                {
+                    "name": "r53.mc.production.hypixel.io",
+                    "type": "A",
+                    "class": "IN",
+                    "ttl": 60,
+                    "rdlength": 0,
+                    "rdata": "",
+                    "address": "209.222.114.17"
+                },
+                {
+                    "name": "r53.mc.production.hypixel.io",
+                    "type": "A",
+                    "class": "IN",
+                    "ttl": 60,
+                    "rdlength": 0,
+                    "rdata": "",
+                    "address": "209.222.114.2"
+                }
+            ]
+        },
+        "error": {
+            "query": "Failed to read from socket."
+        }
+    },
+    "motd": {
+        "raw": [
+            "                \u00a7aHypixel Network \u00a7c[1.8-1.20]",
+            "  \u00a7d\u00a7lSKYBLOCK 0.19.11 \u00a77| \u00a7b\u00a7lBEDWARS SLUMBER HOTEL"
+        ],
+        "clean": [
+            "                Hypixel Network [1.8-1.20]",
+            "  SKYBLOCK 0.19.11 | BEDWARS SLUMBER HOTEL"
+        ],
+        "html": [
+            "                <span style=\"color: #55FF55\">Hypixel Network <\/span><span style=\"color: #FF5555\">[1.8-1.20]<\/span>",
+            "  <span style=\"color: #FF55FF\"><span style=\"font-weight: bold;\">SKYBLOCK 0.19.11 <\/span><\/span><span style=\"color: #AAAAAA\">| <\/span><span style=\"color: #55FFFF\"><span style=\"font-weight: bold;\">BEDWARS SLUMBER HOTEL<\/span><\/span>"
+        ]
+    },
+    "players": {
+        "online": 43799,
+        "max": 200000
+    },
+    "version": "Requires MC 1.8 \/ 1.20",
+    "online": true,
+    "protocol": 47,
+    "protocol_name": "1.8.9",
+    "hostname": "mc.hypixel.net",
+    "icon": "data:image\/png;base64,(bs4encoded image)",
+    "eula_blocked": false
+}
