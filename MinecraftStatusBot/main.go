@@ -1,10 +1,13 @@
 package main
 
 import (
+	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"github.com/bwmarrin/discordgo"
@@ -23,90 +26,53 @@ type Server struct {
 	Address string `json:"address"`
 }
 
-// Structure of mcsrvstat.us v2 api response, soon to be my own api
-type Debug struct {
-	Ping          bool  `json:"ping"`
-	Query         bool  `json:"query"`
-	Srv           bool  `json:"srv"`
-	QueryMismatch bool  `json:"querymismatch"`
-	IpInSrv       bool  `json:"ipinsrv"`
-	CnameInSrv    bool  `json:"cnameinsrv"`
-	AnimatedMotd  bool  `json:"animatedmotd"`
-	CacheHit      bool  `json:"cachehit"`
-	CacheTime     int64 `json:"cachetime"`
-	CacheExpire   int64 `json:"cacheexpire"`
-	ApiVersion    int   `json:"apiversion"`
-	DNS           struct {
-		Srv []struct {
-			Name        string `json:"name"`
-			Type        string `json:"type"`
-			Class       string `json:"class"`
-			TTL         int    `json:"ttl"`
-			RdLength    int    `json:"rdlength"`
-			RData       string `json:"rdata"`
-			Priority    int    `json:"priority"`
-			Weight      int    `json:"weight"`
-			Port        int    `json:"port"`
-			Target      string `json:"target"`
-			TypeCovered string `json:"typecovered,omitempty"`
-			Algorithm   int    `json:"algorithm,omitempty"`
-			Labels      int    `json:"labels,omitempty"`
-			OrigTTL     int    `json:"origttl,omitempty"`
-			SigExp      string `json:"sigexp,omitempty"`
-			SigIncep    string `json:"sigincep,omitempty"`
-			KeyTag      int    `json:"keytag,omitempty"`
-			SignName    string `json:"signname,omitempty"`
-			Signature   string `json:"signature,omitempty"`
-		} `json:"srv"`
-		SrvA []struct {
-			Name        string `json:"name"`
-			Type        string `json:"type"`
-			Class       string `json:"class"`
-			TTL         int    `json:"ttl"`
-			RdLength    int    `json:"rdlength"`
-			RData       string `json:"rdata"`
-			CName       string `json:"cname,omitempty"`
-			Address     string `json:"address,omitempty"`
-			TypeCovered string `json:"typecovered,omitempty"`
-			Algorithm   int    `json:"algorithm,omitempty"`
-			Labels      int    `json:"labels,omitempty"`
-			OrigTTL     int    `json:"origttl,omitempty"`
-			SigExp      string `json:"sigexp,omitempty"`
-			SigIncep    string `json:"sigincep,omitempty"`
-			KeyTag      int    `json:"keytag,omitempty"`
-			SignName    string `json:"signname,omitempty"`
-			Signature   string `json:"signature,omitempty"`
-		} `json:"srv_a"`
-	} `json:"dns"`
-	Error struct {
-		Query string `json:"query"`
-	} `json:"error"`
+// Structure of my apis response, later to be direct ping and query
+type Version struct {
+	Name     string `json:"name"`
+	Protocol int    `json:"protocol"`
 }
 
 type Motd struct {
-	Raw   []string `json:"raw"`
-	Clean []string `json:"clean"`
-	HTML  []string `json:"html"`
+	Clean     string `json:"clean"`
+	Html      string `json:"html"`
+	Minecraft string `json:"minecraft"`
+	Ansi      string `json:"ansi"`
+	Raw       string `json:"raw"`
 }
 
 type Players struct {
-	Online int `json:"online"`
-	Max    int `json:"max"`
+	Online int      `json:"online"`
+	Max    int      `json:"max"`
+	List   []string `json:"list"`
+}
+
+type QueryPlayers struct {
+	Online int      `json:"online"`
+	Max    int      `json:"max"`
+	List   []string `json:"list"`
+}
+
+type QuerySoftware struct {
+	Version string   `json:"version"`
+	Brand   string   `json:"brand"`
+	Plugins []string `json:"plugins"`
+}
+
+type Query struct {
+	Players  QueryPlayers  `json:"players"`
+	Software QuerySoftware `json:"software"`
+	Map      string        `json:"map"`
 }
 
 type MinecraftServer struct {
-	IP           string  `json:"ip"`
-	Port         int     `json:"port"`
-	Debug        Debug   `json:"debug"`
-	Motd         Motd    `json:"motd"`
-	Players      Players `json:"players"`
-	Version      string  `json:"version"`
-	Online       bool    `json:"online"`
-	Protocol     int     `json:"protocol"`
-	ProtocolName string  `json:"protocol_name"`
-	Hostname     string  `json:"hostname"`
-	Icon         string  `json:"icon"`
-	EulaBlocked  bool    `json:"eula_blocked"`
+	Online             bool        `json:"online"`
+	Players            Players     `json:"players"`
+	Version            Version     `json:"version"`
+	EnforcesSecureChat interface{} `json:"enforces_secure_chat"`
+	Motd               Motd        `json:"motd"`
+	Icon               string      `json:"icon"`
+	Latency            float64     `json:"latency"`
+	Query              *Query      `json:"query,omitempty"`
 }
 
 var client *fasthttp.Client
@@ -287,7 +253,7 @@ func statusHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	}
 	client = &fasthttp.Client{}
 	req := fasthttp.AcquireRequest()
-	req.SetRequestURI(fmt.Sprintf("https://api.mcsrvstat.us/2/%s", server))
+	req.SetRequestURI(fmt.Sprintf("http://85.215.55.208:3028/status?address=%s", server))
 	req.Header.SetMethod("GET")
 	resp := fasthttp.AcquireResponse()
 	client.Do(req, resp)
@@ -309,15 +275,27 @@ func statusHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		return
 	}
 
-	message := respBody.IP
+	iconBytes, err := base64.StdEncoding.DecodeString(strings.Replace(respBody.Icon, "data:image/png;base64,", "", 1))
+	if err != nil {
+		fmt.Println("Error decoding base64 icon:", err)
+	}
+
+	iconReader := bytes.NewReader(iconBytes)
+
 	s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
-		Content: &message,
+		Files: []*discordgo.File{
+			{
+				Name:        "icon.png",
+				ContentType: "image/png",
+				Reader:      iconReader,
+			},
+		},
 		Embeds: &[]*discordgo.MessageEmbed{
 			{
 				Title: fmt.Sprintf("Status for %s", server),
 				Type:  discordgo.EmbedTypeRich,
 				Thumbnail: &discordgo.MessageEmbedThumbnail{
-					URL: fmt.Sprintf("https://api.mcsrvstat.us/icon/%s.png", server),
+					URL: "attachment://icon.png",
 				},
 				Footer: &discordgo.MessageEmbedFooter{
 					Text:    i.Member.User.Username,
@@ -325,29 +303,29 @@ func statusHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 				},
 				Fields: []*discordgo.MessageEmbedField{
 					{
-						Name:   "IP",
-						Value:  respBody.IP,
-						Inline: true,
-					},
-					{
-						Name:   "Port",
-						Value:  fmt.Sprint(respBody.Port),
+						Name:   "Latency",
+						Value:  fmt.Sprint(respBody.Latency),
 						Inline: true,
 					},
 					{
 						Name:   "Version",
-						Value:  respBody.Version,
+						Value:  fmt.Sprint(respBody.Version.Name),
 						Inline: true,
+					},
+					{
+						Name:   "Players",
+						Value:  fmt.Sprintf("%d/%d", respBody.Players.Online, respBody.Players.Max),
+						Inline: false,
 					},
 					{
 						Name:   "List",
-						Value:  fmt.Sprintf("%d/%d", respBody.Players.Online, respBody.Players.Max),
-						Inline: true,
+						Value:  fmt.Sprint(respBody.Players.List),
+						Inline: false,
 					},
 					{
 						Name:   "Motd",
-						Value:  respBody.Motd.Raw[0],
-						Inline: true,
+						Value:  respBody.Motd.Raw,
+						Inline: false,
 					},
 				},
 			},
