@@ -7,11 +7,13 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
+	"time"
 
+	mcpinger "github.com/Raqbit/mc-pinger"
 	"github.com/bwmarrin/discordgo"
-	"github.com/valyala/fasthttp"
 )
 
 var (
@@ -25,57 +27,6 @@ type serverData map[string]Server
 type Server struct {
 	Address string `json:"address"`
 }
-
-// Structure of my apis response, later to be direct ping and query
-type Version struct {
-	Name     string `json:"name"`
-	Protocol int    `json:"protocol"`
-}
-
-type Motd struct {
-	Clean     string `json:"clean"`
-	Html      string `json:"html"`
-	Minecraft string `json:"minecraft"`
-	Ansi      string `json:"ansi"`
-	Raw       string `json:"raw"`
-}
-
-type Players struct {
-	Online int      `json:"online"`
-	Max    int      `json:"max"`
-	List   []string `json:"list"`
-}
-
-type QueryPlayers struct {
-	Online int      `json:"online"`
-	Max    int      `json:"max"`
-	List   []string `json:"list"`
-}
-
-type QuerySoftware struct {
-	Version string   `json:"version"`
-	Brand   string   `json:"brand"`
-	Plugins []string `json:"plugins"`
-}
-
-type Query struct {
-	Players  QueryPlayers  `json:"players"`
-	Software QuerySoftware `json:"software"`
-	Map      string        `json:"map"`
-}
-
-type MinecraftServer struct {
-	Online             bool        `json:"online"`
-	Players            Players     `json:"players"`
-	Version            Version     `json:"version"`
-	EnforcesSecureChat interface{} `json:"enforces_secure_chat"`
-	Motd               Motd        `json:"motd"`
-	Icon               string      `json:"icon"`
-	Latency            float64     `json:"latency"`
-	Query              *Query      `json:"query,omitempty"`
-}
-
-var client *fasthttp.Client
 
 func main() {
 	dg, err := discordgo.New(fmt.Sprintf("Bot %s", token))
@@ -216,6 +167,7 @@ func statusHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
 	})
 	server := ""
+	port := uint16(25565)
 	if len(i.ApplicationCommandData().Options) < 1 {
 		file, err := os.Open("data.json")
 		if err != nil {
@@ -251,23 +203,22 @@ func statusHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	} else {
 		server = i.ApplicationCommandData().Options[0].StringValue()
 	}
-	client = &fasthttp.Client{}
-	req := fasthttp.AcquireRequest()
-	req.SetRequestURI(fmt.Sprintf("http://85.215.55.208:3028/status?address=%s", server))
-	req.Header.SetMethod("GET")
-	resp := fasthttp.AcquireResponse()
-	client.Do(req, resp)
-
-	fasthttp.ReleaseRequest(req)
-
-	var respBody MinecraftServer
-
-	err := json.Unmarshal([]byte(string(resp.Body())), &respBody)
-	if err != nil {
-		fmt.Println(err)
+	if strings.Contains(server, ":") {
+		portSplit := strings.Split(server, ":")
+		server = portSplit[0]
+		port64, _ := strconv.ParseUint(portSplit[1], 10, 16)
+		port = uint16(port64)
 	}
 
-	if !respBody.Online {
+	serverPinger := mcpinger.New(server, port, mcpinger.WithTimeout(3*time.Second))
+
+	start := time.Now()
+	info, err := serverPinger.Ping()
+	elapsed := time.Since(start)
+	milliseconds := elapsed.Milliseconds()
+
+	if err != nil {
+
 		message := fmt.Sprintf("%s seems to be offline!", server)
 		s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
 			Content: &message,
@@ -275,7 +226,7 @@ func statusHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		return
 	}
 
-	iconBytes, err := base64.StdEncoding.DecodeString(strings.Replace(respBody.Icon, "data:image/png;base64,", "", 1))
+	iconBytes, err := base64.StdEncoding.DecodeString(strings.Replace(info.Favicon, "data:image/png;base64,", "", 1))
 	if err != nil {
 		fmt.Println("Error decoding base64 icon:", err)
 	}
@@ -304,27 +255,27 @@ func statusHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 				Fields: []*discordgo.MessageEmbedField{
 					{
 						Name:   "Latency",
-						Value:  fmt.Sprint(respBody.Latency),
+						Value:  fmt.Sprint(milliseconds),
 						Inline: true,
 					},
 					{
 						Name:   "Version",
-						Value:  fmt.Sprint(respBody.Version.Name),
+						Value:  fmt.Sprint(info.Version.Name),
 						Inline: true,
 					},
 					{
 						Name:   "Players",
-						Value:  fmt.Sprintf("%d/%d", respBody.Players.Online, respBody.Players.Max),
+						Value:  fmt.Sprintf("%d/%d", info.Players.Online, info.Players.Max),
 						Inline: false,
 					},
 					{
 						Name:   "List",
-						Value:  fmt.Sprint(respBody.Players.List),
+						Value:  fmt.Sprint(info.Players.Sample),
 						Inline: false,
 					},
 					{
 						Name:   "Motd",
-						Value:  respBody.Motd.Raw,
+						Value:  info.Description.Text,
 						Inline: false,
 					},
 				},
@@ -332,6 +283,5 @@ func statusHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		},
 	},
 	)
-	fasthttp.ReleaseResponse(resp)
 
 }
