@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"image"
 	"os"
 	"os/signal"
 	"strconv"
@@ -166,6 +167,7 @@ func statusHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
 	})
+	startTotalTime := time.Now()
 	server := ""
 	port := uint16(25565)
 	if len(i.ApplicationCommandData().Options) < 1 {
@@ -215,7 +217,7 @@ func statusHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	start := time.Now()
 	info, err := serverPinger.Ping()
 	elapsed := time.Since(start)
-	milliseconds := elapsed.Milliseconds()
+	milliseconds := elapsed.Seconds() * 1000
 
 	if err != nil {
 
@@ -233,7 +235,30 @@ func statusHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 
 	iconReader := bytes.NewReader(iconBytes)
 
-	s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+	img, _, err := image.Decode(iconReader)
+	if err != nil {
+		fmt.Println("Error decoding image:", err)
+		return
+	}
+
+	bounds := img.Bounds()
+	width := bounds.Max.X
+	height := bounds.Max.Y
+
+	centerX := width / 2
+	centerY := height / 2
+
+	centerPixel := img.At(centerX, centerY)
+	r, g, b, _ := centerPixel.RGBA()
+
+	hexValue := (int(r>>8) << 16) + (int(g>>8) << 8) + int(b>>8)
+
+	iconReader = bytes.NewReader(iconBytes)
+
+	elapsedTotalTime := time.Since(startTotalTime)
+	totalTime := elapsedTotalTime.Seconds() * 1000
+
+	_, err = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
 		Files: []*discordgo.File{
 			{
 				Name:        "icon.png",
@@ -243,8 +268,10 @@ func statusHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		},
 		Embeds: &[]*discordgo.MessageEmbed{
 			{
-				Title: fmt.Sprintf("Status for %s", server),
-				Type:  discordgo.EmbedTypeRich,
+				Title:       fmt.Sprintf("Status for %s", server),
+				Description: fmt.Sprintf("Stats retrieved asynchronously for %s. Took %.2fms total.", server, totalTime),
+				Type:        discordgo.EmbedTypeRich,
+				Color:       hexValue,
 				Thumbnail: &discordgo.MessageEmbedThumbnail{
 					URL: "attachment://icon.png",
 				},
@@ -252,10 +279,13 @@ func statusHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 					Text:    i.Member.User.Username,
 					IconURL: i.Member.User.AvatarURL("16"),
 				},
+				Image: &discordgo.MessageEmbedImage{
+					URL: fmt.Sprintf("http://85.215.55.208:3028/icon/%s?online=%d&max=%d", server, info.Players.Online, info.Players.Max),
+				},
 				Fields: []*discordgo.MessageEmbedField{
 					{
 						Name:   "Latency",
-						Value:  fmt.Sprint(milliseconds),
+						Value:  fmt.Sprintf("%.2fms", milliseconds),
 						Inline: true,
 					},
 					{
@@ -283,5 +313,10 @@ func statusHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		},
 	},
 	)
+
+	if err != nil {
+		fmt.Println("There was an error sending the message: ", err)
+		return
+	}
 
 }
